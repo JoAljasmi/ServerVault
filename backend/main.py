@@ -1,0 +1,84 @@
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+from database import engine, get_db, Base
+from models import User, GameServer, ServerStatus
+from schemas import UserCreate, UserLogin, UserOut, ServerCreate, ServerOut, ServerAction, Token
+from auth import hash_password, verify_password, create_access_token, get_current_user
+import random
+
+# Create all tables in the database
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(title="ServerVault API")
+
+# Allow frontend to access the API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # react dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ====== auth routes ======
+
+@app.post("/auth/register", response_model=Token)
+def register(user: UserCreate, db: Session = Depends(get_db)):
+    """Create a new account"""
+
+    # checking if username or email already exists
+    if db.query(User).filter(User.username == user.username).first():
+        raise HTTPException(status_code=400, detail="Username already taken")
+    if db.query(User).filter(User.email == user.email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    new_user = User(
+        username=user.username,
+        email=user.email,
+        hashed_password=hash_password(user.password)
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
+
+@app.post("/auth/login", response_model=Token)
+def login(user: UserLogin, db: Session = Depends(get_db)):
+    """Log in and receive an access token"""
+    
+    db_user = db.query(User).filter(User.username == user.username).first()
+    if not db_user or not verify_password(user.password, db_user.hashed_password):
+        raise HTTPException(status_code=401, detail = "Invalid username or password")
+    
+    token = create_access_token(data={"sub": db_user.id})
+    return {"access_token": token, "token_type": "bearer"}
+
+@app.get("/auth/me", response_model=UserOut)
+def get_me(current_user: User = Depends(get_current_user)):
+    """Get the current logged in user's info"""
+    return current_user
+
+# ====== server routes ======
+
+def generate_fake_ip() -> str:
+    """Generate a fake server IP"""
+    return f"{random.randint(50,200)}.{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}:{random.choice([27015, 28015, 25565])}"
+
+def generate_fake_stats(status: str) -> dict:
+    """generate fake cpu/ram/player stats based on server status"""
+    if status == ServerStatus.RUNNING:
+        return{
+            "fake_cpu": round(random.uniform(15, 85), 1),
+            "fake_ram": round(random.uniform(20, 75), 1),
+            "fake_players": random.randint(0, 20),
+        }
+    #if server is off put everything at 0
+    return {"fake_cpu": 0.0, "fake_ram": 0.0, "fake_players": 0}
+
+GAME_PRICING = {
+    "CS2": 12.99,
+    "rust": 14.99,
+    "minecraft": 9.99,
+}
+
