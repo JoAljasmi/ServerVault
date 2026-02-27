@@ -82,3 +82,32 @@ GAME_PRICING = {
     "minecraft": 9.99,
 }
 
+@app.post("/servers", response_model=ServerOut)
+def create_server(
+    server: ServerCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """ Deploy a new game server"""
+
+    if server.game not in GAME_PRICING:
+        raise HTTPException(status_code=400, detail="Unsupported game (game that is supported: CS2, rust, minecraft)")
+    
+    new_server = GameServer(
+        name=server.name,
+        game=server.game,
+        status=ServerStatus.RUNNING,
+        fake_ip=generate_fake_ip(),
+        fake_cpu=round(random.uniform(15, 85), 1),
+        fake_ram=round(random.uniform(20, 75), 1),
+        fake_players=random.randint(0, server.max_players),
+        max_players=server.max_players,
+        monthly_cost=GAME_PRICING[server.game],
+        owner_id=current_user.id,
+    )
+    db.add(new_server)
+    db.commit()
+    db.refresh(new_server)
+    return new_server
+
+
