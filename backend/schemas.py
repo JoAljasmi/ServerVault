@@ -15,7 +15,15 @@ class UserLogin(BaseModel):
     username: str
     password: str
 
+# what is sent back to the user
+class UserOut(BaseModel):
+    id: int
+    username: str
+    email: str
+    created_at: datetime
 
+    class Config:
+        from_attributes = True
 
 # ============== server Scehmas ==============
 
@@ -26,3 +34,27 @@ class ServerCreate(BaseModel):
     game: str
     max_players: int = 20 #defaulting 20 slots
 
+class ServerOut(BaseModel):
+    id: int
+    name: str
+    game: str
+    fake_ip: str
+    fake_cpu: str
+    fake_ram: str
+    fake_players: int
+    max_players: int
+    created_at: datetime
+    owner_id: int
+
+    class Config:
+        from_attributes = True
+
+#for starting/stopping/restarting actions
+class ServerAction(BaseModel):
+    action: str  # "start", "stop", "restart"
+
+#============= auth Scehmas ==============
+#what is returned after login
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
