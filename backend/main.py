@@ -23,7 +23,7 @@ app.add_middleware(
 
 # ====== auth routes ======
 
-@app.post("/auth/register", response_model=Token)
+@app.post("/auth/register", response_model=UserOut)
 def register(user: UserCreate, db: Session = Depends(get_db)):
     """Create a new account"""
 
