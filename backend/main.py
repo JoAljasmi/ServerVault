@@ -110,4 +110,97 @@ def create_server(
     db.refresh(new_server)
     return new_server
 
+@app.get("/servers", response_model=list[ServerOut])
+def list_servers(
+    server_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """ Get details of a specific server"""
+    server = db.query(GameServer).filter(
+        GameServer.id == server_id,
+        GameServer.owner_id == current_user.id
+    ).first()
 
+    if not server:
+        raise HTTPException(status_code=404, detail= "Server not found")
+    
+    stats = generate_fake_stats(server.status)
+    server.fake_cpu = stats["fake_cpu"]
+    server.fake_ram = stats["fake_ram"]
+    server.fake_players = stats["fake_players"]
+    db.commit()
+
+    return server
+
+@app.post("/servers/{server_id}/action", response_model=ServerOut)
+def server_action(
+    server_id: int,
+    action: ServerAction,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """start, stop or restart a server"""
+
+    server = db.query(GameServer).filter(
+        GameServer.id == server_id,
+        GameServer.owner_id == current_user.id
+    ).first()
+
+    if not server:
+        raise HTTPException(status_code=404, detail= "Server not found")
+    
+    if action.action == "start":
+        server.status = ServerStatus.RUNNING
+    elif action.action == "stop":
+        server.status = ServerStatus.STOPPED
+    elif action.action == "restart":
+        server.status = ServerStatus.RESTARTING
+    else:
+        raise HTTPException(status_code=400, detail="Invalid action (valid actions: start, stop, restart)")
+    
+    #updateing fake stats based on the new status
+    stats = generate_fake_stats(server.status)
+    server.fake_cpu = stats["fake_cpu"]
+    server.fake_ram = stats["fake_ram"]
+    server.fake_players = stats["fake_players"]
+    db.commit()
+    db.refresh(server)
+    return server
+
+@app.delete("/servers/{server_id}")
+def delete_server(
+    server_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete or cancel a server"""
+    server = db.query(GameServer).filter(
+        GameServer.id == server_id,
+        GameServer.owner_id == current_user.id
+    ).first()
+
+    if not server:
+        raise HTTPException(status_code=404, detail= "Server not found")
+    
+    db.delete(server)
+    db.commit()
+    return {"message": "Server deleted successfully"}    
+
+# ======= Dashboard Stats =======
+
+@app.get("/dashboard/stats")
+def get_dashboard_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get overview stats for the users dashboard"""
+
+    total_servers = db.query(GameServer).filter(GameServer.owner_id == current_user.id).all()
+
+    return { 
+        "total_servers": len(total_servers),
+        "active_servers": len([servers for servers in total_servers if servers.status == ServerStatus.RUNNING]),
+        "total_players": sum([servers.fake_players for servers in total_servers]),
+        "monthly cost": round(sum(servers.monthly_cost for servers in total_servers), 2)
+    }
