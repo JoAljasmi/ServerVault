@@ -40,6 +40,7 @@ class GameServer(Base):
     fake_ip = Column(String, nullable=True)
     fake_cpu = Column(Float, default=0.0)
     fake_ram = Column(Float, default=0.0)
+    fake_players = Column(Integer, default=0)
     max_players = Column(Integer, default=20)
     monthly_cost = Column(Float, default=9.99) #fake billing for testing purposes
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
