@@ -5,13 +5,13 @@ from datetime import datetime, timezone
 import enum
 
 #games that are supported by the server
-class GameType(str, enum):
+class GameType(str, enum.Enum):
     CS2 = "CS2"
     Minecraft = "Minecraft"
     Rust = "Rust"
 
 
-class ServerStatus(str, enum):
+class ServerStatus(str, enum.Enum):
     STARTING = "Starting"
     RUNNING = "Running"
     STOPPED = "Stopped"
