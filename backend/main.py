@@ -52,7 +52,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     if not db_user or not verify_password(form_data.password, db_user.hashed_password):
         raise HTTPException(status_code=401, detail = "Invalid username or password")
     
-    token = create_access_token(data={"sub": db_user.id})
+    token = create_access_token(data={"sub": str(db_user.id)})
     return {"access_token": token, "token_type": "bearer"}
 
 @app.get("/auth/me", response_model=UserOut)
@@ -113,19 +113,30 @@ def create_server(
 
 @app.get("/servers", response_model=list[ServerOut])
 def list_servers(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get all servers owned by the current user."""
+    return db.query(GameServer).filter(GameServer.owner_id == current_user.id).all()
+
+
+@app.get("/servers/{server_id}", response_model=ServerOut)
+def get_server(
     server_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """ Get details of a specific server"""
+    """Get details of a specific server."""
+
     server = db.query(GameServer).filter(
         GameServer.id == server_id,
-        GameServer.owner_id == current_user.id
+        GameServer.owner_id == current_user.id,
     ).first()
 
     if not server:
-        raise HTTPException(status_code=404, detail= "Server not found")
-    
+        raise HTTPException(status_code=404, detail="Server not found")
+
+    # Refresh fake stats every time you check (makes dashboard feel alive)
     stats = generate_fake_stats(server.status)
     server.fake_cpu = stats["fake_cpu"]
     server.fake_ram = stats["fake_ram"]

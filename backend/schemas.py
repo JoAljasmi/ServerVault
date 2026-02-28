@@ -39,8 +39,8 @@ class ServerOut(BaseModel):
     name: str
     game: str
     fake_ip: str
-    fake_cpu: str
-    fake_ram: str
+    fake_cpu: float
+    fake_ram: float
     fake_players: int
     max_players: int
     created_at: datetime
