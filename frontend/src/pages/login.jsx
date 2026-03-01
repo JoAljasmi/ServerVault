@@ -39,9 +39,7 @@ return (
         {/* Logo */}
         <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
-            </svg>
+                <img src="/Servervault-logo.png" alt="ServerVault" className="w-16 h-16 rounded-2xl mb-4"/>
             </div>
             <h1 className="text-4xl font-bold text-white">ServerVault</h1>
             <p className="text-gray-400 mt-2">Game server hosting made simple</p>

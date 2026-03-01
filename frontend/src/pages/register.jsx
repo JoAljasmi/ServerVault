@@ -25,22 +25,21 @@ function Register() {
         }
     };
 
-    return (
+    return (            
         <div className="min-h-screen flex items-center justify-center px-4"
         style={{
             background:"Linear-gradient(rgba(17, 24, 39, 0.85), rgba(17, 24, 39, 0.95)), url('/gaming-bg.jpg') center/cover fixed",
         }}>
+            {/* Logo and background */}
             <div className="w-full max-w-md">
                 <div className="text-center mb-8 flex flex-col items-center">
                     <div className="inline-flex- items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4">
-                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/>
-                        </svg>
+                        <img src="/Servervault-logo.png" alt="ServerVault" className="w-16 h-16 rounded-2xl mb-4" />
                     </div>
                     <h1 className="text-4xl font-bold text-white">ServerVault</h1>
                     <p className="text-gray-400 mt-2">Create your account</p>
             </div>
-
+                {/* Registration Card */}
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-8 shadow-2xl">
             <h2 className="text-xl font-semibold text-white mb-6">Get started for free</h2>
             {error && (
@@ -49,6 +48,7 @@ function Register() {
                 </div>
             )}
             <form onSubmit={handleRegister} className="space-y-5">
+                {/* Username, email and password fields */}
                 <div>
                     <label className="text-gray-300 text-sm font-medium block mb-2">Username</label>
                     <input
@@ -60,8 +60,8 @@ function Register() {
                         required
                     />
                 </div>
-
                 <div>
+                    
                     <label className="text-gray-300 text-sm font-medium block mb-2">Email</label>
                     <input
                         type="email"
