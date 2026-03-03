@@ -1,68 +1,77 @@
+import bcrypt
+import secrets
 from datetime import datetime, timedelta, timezone
-from passlib.context import CryptContext
-from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from database import get_db
-import os
-from dotenv import load_dotenv
-
-
-load_dotenv()
-
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 
 # ============= Password Hashing ==============
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
 def hash_password(password: str) -> str:
-    """turning the password into a secure hash"""
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """checking if the provided password matches the stored hash"""
-    return pwd_context.verify(plain_password, hashed_password)
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+# ============= Db Token ==============
 
-# ============= JWT Token ==============
+TOKEN_EXPIRE_HOURS = 24
 
-def create_access_token(data: dict) -> str:
-    """creating a jwt token with an expiration time"""
-    to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+def create_token(user_id: int, db: Session) -> str:
+    """generates random token to the database"""
+    from models import UserSession
+    
+    token = secrets.token_hex(32)
+    current_session = UserSession(token=token, user_id=user_id)
+    db.add(current_session)
+    db.commit()
+    return token
 
 # ============= Get current user ==============
 
-#looking for token in auth header
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 def get_current_user(
         token: str = Depends(oauth2_scheme),
-        db: Session = Depends(get_db)
-):
-    """Decode the JWT token and return the user"""
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="invalid or expired token",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: int = payload.get("sub")
-        if user_id is None:
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
+          db:Session = Depends(get_db)):
+    """look up the token and return the user """
+
+    from models import UserSession, User
+
+    current_session = db.query(UserSession).filter(UserSession.token == token).first()
     
-    from models import User
-    user = db.query(User).filter(User.id == user_id).first()
-    if user is None:
-        raise credentials_exception
+    if not current_session:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    #checking if the token is expired
+    if datetime.now(timezone.utc) - current_session.created_at.replace(tzinfo=timezone.utc) > timedelta(hours=TOKEN_EXPIRE_HOURS):
+        db.delete(current_session)
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    #fetching the user
+    user = db.query(User).filter(User.id == current_session.user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+    
     return user
+
+def delete_token(token: str, db: Session):
+    """delete the token (logout)"""
+    from models import UserSession
+
+    current_session = db.query(UserSession).filter(UserSession.token == token).first()
+    if current_session:
+        db.delete(current_session)
+        db.commit()

@@ -48,3 +48,13 @@ class GameServer(Base):
 
     #linking back to the user
     owner = relationship("User", back_populates="servers")
+
+class UserSession(Base):
+    __tablename__ = "sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    token = Column(String, unique=True, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User")
