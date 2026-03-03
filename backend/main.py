@@ -1,11 +1,10 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from database import engine, get_db, Base
 from models import User, GameServer, ServerStatus
 from schemas import UserCreate, UserLogin, UserOut, ServerCreate, ServerOut, ServerAction, Token
-from auth import hash_password, verify_password, create_access_token, get_current_user
+from auth import hash_password, verify_password, create_token, get_current_user, delete_token, oauth2_scheme
 import random
 
 # Create all tables in the database
@@ -45,15 +44,25 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     return new_user
 
 @app.post("/auth/login", response_model=Token)
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    """Log in and receive an access token"""
+def login(user: UserLogin, db: Session = Depends(get_db)):
+    """Log in and get an access token"""
     
-    db_user = db.query(User).filter(User.username == form_data.username).first()
-    if not db_user or not verify_password(form_data.password, db_user.hashed_password):
+    db_user = db.query(User).filter(User.username == user.username).first()
+    if not db_user or not verify_password(user.password, db_user.hashed_password):
         raise HTTPException(status_code=401, detail = "Invalid username or password")
     
-    token = create_access_token(data={"sub": str(db_user.id)})
+    token = create_token(db_user.id, db)
     return {"access_token": token, "token_type": "bearer"}
+
+@app.post("/auth/logout")
+def logout(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+):
+    """log out by deleting the token"""
+    delete_token(token, db)
+    return {"message": "Logged out successfully"}
+
 
 @app.get("/auth/me", response_model=UserOut)
 def get_me(current_user: User = Depends(get_current_user)):
