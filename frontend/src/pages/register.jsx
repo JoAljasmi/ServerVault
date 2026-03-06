@@ -19,10 +19,15 @@ function Register() {
             await API.post("/auth/register", {username, email, password});
             navigate("/login");
         } catch (err) {
-            setError(err.response?.data?.detail || "Registration failed, please try again.");
-        } finally {
-            setLoading(false);
+            const detail = err.response?.data?.detail;
+            if (typeof detail === "string") {
+            setError(detail);
+        } else {
+            setError("Registration failed, please try again.");
         }
+    } finally {
+        setLoading(false);
+    }
     };
 
     return (            

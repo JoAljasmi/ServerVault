@@ -16,22 +16,20 @@ function Login() {
         setLoading(true);
 
         try {
-        const formData = new URLSearchParams();
-        formData.append("username", username);
-        formData.append("password", password);
-
-        const response = await API.post("/auth/login", formData, {
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        });
-
-        localStorage.setItem("token", response.data.access_token);
-        navigate("/dashboard");
-        } catch (err) {
-        setError(err.response?.data?.detail || "Login failed, please use the correct username and password.");
+        const response = await API.post("/auth/login", { username, password});
+            localStorage.setItem("token", response.data.access_token);
+            navigate("/dashboard");
+            } catch (err) {
+            const detail = err.response?.data?.detail;
+            if (typeof detail === "string") {
+                setError(detail);
+            } else {
+                setError("Login failed, please use the correct username and password.");
+            }
         } finally {
-        setLoading(false);
+            setLoading(false);
         }
-};
+    };
 
 return (
     <div className="min-h-screen flex items-center justify-center px-4" style={{background: "linear-gradient(rgba(17, 24, 39, 0.85), rgba(17, 24, 39 ,0.95)), url('gaming-bg.jpg') center/cover fixed"}}>
