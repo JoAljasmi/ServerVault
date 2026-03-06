@@ -4,10 +4,6 @@ import Register from "./pages/register";
 import Dashboard from "./pages/Dashboard";
 
 function App() {
-  const isLoggedIn = () => {
-    return localStorage.getItem("token") !== null;
-  };
-
   return (
     <Router>
       <Routes>
@@ -15,7 +11,9 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route
           path="/dashboard"
-          element={isLoggedIn() ? <Dashboard /> : <Navigate to="/login" />}
+          element={
+            localStorage.getItem("token") ? <Dashboard /> : <Navigate to="/login" />
+          }
         />
         <Route path="/" element={<Navigate to="/login" />} />
       </Routes>

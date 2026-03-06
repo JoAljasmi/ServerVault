@@ -38,11 +38,13 @@ class ServerOut(BaseModel):
     id: int
     name: str
     game: str
+    status: str
     fake_ip: str
     fake_cpu: float
     fake_ram: float
     fake_players: int
     max_players: int
+    monthly_cost: float
     created_at: datetime
     owner_id: int
 

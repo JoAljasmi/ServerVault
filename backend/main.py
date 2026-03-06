@@ -223,5 +223,5 @@ def get_dashboard_stats(
         "total_servers": len(total_servers),
         "active_servers": len([servers for servers in total_servers if servers.status == ServerStatus.RUNNING]),
         "total_players": sum([servers.fake_players for servers in total_servers]),
-        "monthly cost": round(sum(servers.monthly_cost for servers in total_servers), 2)
+        "monthly_cost": round(sum(servers.monthly_cost for servers in total_servers), 2)
     }
