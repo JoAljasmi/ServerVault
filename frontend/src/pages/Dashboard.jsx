@@ -138,9 +138,7 @@ function Dashboard() {
                 onChange={(e)=> setNewServer({...newServer, game: e.target.value})}
                 className='p-3 rounded-lg bg-gray-700/50 text-white border border-gray-600 focus:border-blue-500 focus:outline-none'
                 >
-                  <option value="CS2">CS2 (12.99kr/mo)</option>
                   <option value="minecraft">Minecraft (9.99kr/mo)</option>
-                  <option value="rust">Rust (14.99kr/mo)</option>
                 </select>
               </div>
 
