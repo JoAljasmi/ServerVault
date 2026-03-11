@@ -199,8 +199,18 @@ def list_servers(
     current_user: User = Depends(get_current_user),
 ):
     """Get all servers owned by the current user."""
-    return db.query(GameServer).filter(GameServer.owner_id == current_user.id).all()
+    servers = db.query(GameServer).filter(GameServer.owner_id == current_user.id).all()
 
+    for server in servers:
+        port = server.ip_address.split(":")[-1]
+        container_name = f"mc-{current_user.id}-{port}"
+        server.status = get_container_status(container_name)
+        stats = get_container_stats(container_name)
+        server.cpu_usage = stats["cpu"]
+        server.ram_usage = stats["ram"]
+
+    db.commit()
+    return servers
 
 @app.get("/servers/{server_id}", response_model=ServerOut)
 def get_server(
@@ -217,14 +227,14 @@ def get_server(
 
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
-
-    # Refresh fake stats every time you check (makes dashboard feel alive)
-    stats = generate_fake_stats(server.status)
-    server.fake_cpu = stats["fake_cpu"]
-    server.fake_ram = stats["fake_ram"]
-    server.fake_players = stats["fake_players"]
+    
+    port = server.ip_address.split(":")[-1]
+    container_name = f"mc-{current_user.id}-{port}"
+    server.status = get_container_status(container_name)
+    stats = get_container_stats(container_name)
+    server.cpu_usage = stats["cpu"]
+    server.ram_usage = stats["ram"]
     db.commit()
-
     return server
 
 @app.post("/servers/{server_id}/action", response_model=ServerOut)
@@ -243,21 +253,22 @@ def server_action(
 
     if not server:
         raise HTTPException(status_code=404, detail= "Server not found")
+
+    port = server.ip_address.split(":")[-1]
+    container_name = f"mc-{current_user.id}-{port}"
     
     if action.action == "start":
+        run_docker(["docker", "start", container_name])
         server.status = ServerStatus.RUNNING
     elif action.action == "stop":
+        run_docker(["docker", "stop", container_name])
         server.status = ServerStatus.STOPPED
     elif action.action == "restart":
-        server.status = ServerStatus.RESTARTING
+        run_docker(["docker", "restart", container_name])
+        server.status = ServerStatus.RUNNING
     else:
         raise HTTPException(status_code=400, detail="Invalid action (valid actions: start, stop, restart)")
     
-    #updateing fake stats based on the new status
-    stats = generate_fake_stats(server.status)
-    server.fake_cpu = stats["fake_cpu"]
-    server.fake_ram = stats["fake_ram"]
-    server.fake_players = stats["fake_players"]
     db.commit()
     db.refresh(server)
     return server
@@ -277,6 +288,12 @@ def delete_server(
     if not server:
         raise HTTPException(status_code=404, detail= "Server not found")
     
+    port = server.ip_address.split(":")[-1]
+    container_name = f"mc-{current_user.id}-{port}"
+
+    run_docker(["docker", "stop", container_name])
+    run_docker(["docker", "rm", container_name])
+    
     db.delete(server)
     db.commit()
     return {"message": "Server deleted successfully"}    
@@ -294,7 +311,7 @@ def get_dashboard_stats(
 
     return { 
         "total_servers": len(total_servers),
-        "active_servers": len([servers for servers in total_servers if servers.status == ServerStatus.RUNNING]),
-        "total_players": sum([servers.fake_players for servers in total_servers]),
-        "monthly_cost": round(sum(servers.monthly_cost for servers in total_servers), 2)
+        "active_servers": len([s for s in total_servers if s.status == ServerStatus.RUNNING]),
+        "total_players": sum([s.player_count for s in total_servers]),
+        "monthly_cost": round(sum(s.monthly_cost for s in total_servers), 2)
     }

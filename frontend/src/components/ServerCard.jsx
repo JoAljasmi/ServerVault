@@ -1,7 +1,5 @@
 function ServerCard({ server, onAction, onDelete }) {
     const gameIcons = {
-        cs2: "/cs2.jpg", 
-        rust: "/rust.jpg",
         minecraft: "/minecraft.jpg",
     };
 
@@ -17,10 +15,10 @@ function ServerCard({ server, onAction, onDelete }) {
             {/*Header*/}
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                    <img src={gameIcons[server.game]} alt={server.game} className="w-10 h-10 rounded-lg object-cover" />
+                    <img src={gameIcons[server.game]} alt="Minecraft" className="w-10 h-10 rounded-lg object-cover" />
                 <div>
                 <h3 className="text-white font-semibold">{server.name}</h3>
-                <p className="text-gray-500 text-xs">{server.fake_ip}</p>
+                <p className="text-gray-500 text-xs">{server.ip_address}</p>
                 </div>
             </div>
             <span className={`text-sm font-medium ${statusColors[server.status] || "text-gray-400"}`}>
@@ -32,15 +30,15 @@ function ServerCard({ server, onAction, onDelete }) {
         <div className="grid grid-cols-3 gap-3 mb-4">
         <div className="bg-gray-700/50 rounded-lg p-2 text-center">
         <p className="text-gray-400 text-xs">CPU</p>
-        <p className="text-white font-semibold text-sm">{server.fake_cpu}%</p>
+        <p className="text-white font-semibold text-sm">{server.cpu_usage}%</p>
         </div>
         <div className="bg-gray-700/50 rounded-lg p-2 text-center">
         <p className="text-gray-400 text-xs">RAM</p>
-        <p className="text-white font-semibold text-sm">{server.fake_ram}%</p>
+        <p className="text-white font-semibold text-sm">{server.ram_usage}%</p>
         </div>
         <div className="bg-gray-700/50 rounded-lg p-2 text-center">
         <p className="text-gray-400 text-xs">Players</p>
-        <p className="text-white font-semibold text-sm">{server.fake_players}/{server.max_players}</p>
+        <p className="text-white font-semibold text-sm">{server.player_count}/{server.max_players}</p>
         </div>
     </div>
 
@@ -77,7 +75,7 @@ function ServerCard({ server, onAction, onDelete }) {
 
       {/* Cost */}
     <div className="mt-3 pt-3 border-t border-gray-700 flex justify-between">
-        <span className="text-gray-400 text-xs">{server.game.toUpperCase()}</span>
+        <span className="text-gray-400 text-xs">MINECRAFT</span>
         <span className="text-gray-300 text-sm font-medium">${server.monthly_cost}/mo</span>
     </div>
     </div>
