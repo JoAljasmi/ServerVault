@@ -112,19 +112,21 @@ def get_container_stats(container_name: str) -> dict:
     """Get cpu and ram usage from the running container"""
     try:
         result = subprocess.run(
-        ["docker", "stats", container_name, "--no-stream", "--format", "{{.CPUPerc}} {{.MemPerc}}"],
+        ["docker", "stats", container_name, "--no-stream", "--format", "table {{.CPUPerc}}\t{{.MemPerc}}"],
         capture_output=True,
         text=True,
         timeout=10
         )
         output = result.stdout.strip()
-        if output:
-            parts = output.split("|")
-            cpu = float(parts[0].replace("%", ""))
-            ram = float(parts[1].replace("%", ""))
+        print(f"Raw stats output: {repr(output)}")  # Debugging line
+        lines = output.split("\n")
+        if len(lines) >= 2:
+            values = lines[1].split()
+            cpu = float(values[0].replace("%", ""))
+            ram = float(values[1].replace("%", ""))
             return {"cpu": round(cpu, 1), "ram": round(ram, 1)}
-    except:
-        pass
+    except Exception as e:
+        print(f"stats error: {e}")
     return {"cpu": 0.0, "ram": 0.0}
 
 def get_container_status(container_name: str) -> str:
