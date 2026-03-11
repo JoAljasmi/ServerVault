@@ -7,7 +7,7 @@ function Dashboard() {
   const [servers, setServers] = useState([]);
   const [stats, setStats] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [newServer, setNewServer] = useState({name: "", game: "CS2", max_players: 20});
+  const [newServer, setNewServer] = useState({name: "", game: "minecraft", max_players: 20});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
