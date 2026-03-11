@@ -13,7 +13,7 @@ function Dashboard() {
 
   // Fetch servers and stats on load
   useEffect(() => {
-    fetchData();
+    fetchData();  
   }, []);
 
   const fetchData = async () => {
@@ -37,7 +37,7 @@ function Dashboard() {
     try {
       await API.post("/servers", newServer);
       setShowCreate(false);
-      setNewServer({name: "", game: "CS2", max_players: 20});
+      setNewServer({name: "", game: "minecraft", max_players: 20});
       fetchData();
     }catch (err){
       setError(err.response?.data?.detail || "Failed to create server")
