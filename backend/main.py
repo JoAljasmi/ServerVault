@@ -5,7 +5,7 @@ from database import engine, get_db, Base
 from models import User, GameServer, ServerStatus
 from schemas import UserCreate, UserLogin, UserOut, ServerCreate, ServerOut, ServerAction, Token
 from auth import hash_password, verify_password, create_token, get_current_user, delete_token, oauth2_scheme
-import random
+import subprocess
 
 # Create all tables in the database
 Base.metadata.create_all(bind=engine)
@@ -15,7 +15,7 @@ app = FastAPI(title="ServerVault API")
 # Allow frontend to access the API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # react dev server
+    allow_origins=["http://13.63.101.221:3000", "http://localhost:3000", "http://13.63.101.221"],  # react dev server
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -69,26 +69,77 @@ def get_me(current_user: User = Depends(get_current_user)):
     """Get the current logged in user's info"""
     return current_user
 
+# ====== Docker Helpers ======
+
+def get_public_ip() -> str:
+    """ Get the ec2 public ip address"""
+    try:
+        result = subprocess.run(["curl", "-s", "http://checkip.amazonaws.com"],
+        capture_output=True, text=True, timeout=5)
+        return result.stdout.strip()
+    except:
+        return "0.0.0.0"
+    
+def get_next_port(db: Session) -> int:
+    """Find the next available port starting from 25565"""
+    servers = db.query(GameServer).all()
+    used_ports = set()
+    for s in servers:
+        try:
+            port = int(s.ip_address.split(":")[-1])
+            used_ports.add(port)
+        except:
+            pass
+    port = 25565
+    while port in used_ports:
+        port += 1
+    return port
+
+def run_docker(command: list) -> str:
+    """Run a docker command and return the output"""
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        return result.stdout.strip()
+    except Exception as e:
+        return str(e)
+
+def get_container_stats(container_name: str) -> dict:
+    """Get cpu and ram usage from the running container"""
+    try:
+        result = subprocess.run(
+        ["docker", "stats", container_name, "--no-stream", "--format", "{{.CPUPerc}} {{.MemPerc}}"],
+        capture_output=True,
+        text=True,
+        timeout=10
+        )
+        output = result.stdout.strip()
+        if output:
+            parts = output.split("|")
+            cpu = float(parts[0].replace("%", ""))
+            ram = float(parts[1].replace("%", ""))
+            return {"cpu": round(cpu, 1), "ram": round(ram, 1)}
+    except:
+        pass
+    return {"cpu": 0.0, "ram": 0.0}
+
+def get_container_status(container_name: str) -> str:
+    """Check if the contaienr is running"""
+    result = run_docker(["docker", "inspect", "-f", "{{.State.Status}}", container_name])
+    if "running" in result:
+        return ServerStatus.RUNNING
+    elif "exited" in result or "created" in result:
+        return ServerStatus.STOPPED
+    return ServerStatus.STOPPED
+
+
 # ====== server routes ======
 
-def generate_fake_ip() -> str:
-    """Generate a fake server IP"""
-    return f"{random.randint(50,200)}.{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}:{random.choice([27015, 28015, 25565])}"
-
-def generate_fake_stats(status: str) -> dict:
-    """generate fake cpu/ram/player stats based on server status"""
-    if status == ServerStatus.RUNNING:
-        return{
-            "fake_cpu": round(random.uniform(15, 85), 1),
-            "fake_ram": round(random.uniform(20, 75), 1),
-            "fake_players": random.randint(0, 20),
-        }
-    #if server is off put everything at 0
-    return {"fake_cpu": 0.0, "fake_ram": 0.0, "fake_players": 0}
-
 GAME_PRICING = {
-    "CS2": 12.99,
-    "rust": 14.99,
     "minecraft": 9.99,
 }
 
@@ -99,21 +150,43 @@ def create_server(
     current_user: User = Depends(get_current_user),
 ):
     """ Deploy a new game server"""
-
     if server.game not in GAME_PRICING:
-        raise HTTPException(status_code=400, detail="Unsupported game (game that is supported: CS2, rust, minecraft)")
+        raise HTTPException(status_code=400, detail="only minecraft is supported for now")
     
+    #limited to 3 servers per user
+    user_servers = db.query(GameServer).filter(GameServer.owner_id == current_user.id).all()
+    if len(user_servers) >= 3:
+        raise HTTPException(status_code=400, detail="Server limit reached per user (max 3)")
+
+    port = get_next_port(db)
+    container_name = f"mc-{current_user.id}-{port}"
+
+    # start the minecraft server in docker
+    run_docker([
+        "docker", "run", "-d",
+        "--name", container_name,
+        "-p", f"{port}:25565",
+        "-e", "EULA=TRUE",
+        "-e", f"MAX_PLAYERS={server.max_players}",
+        "-e", "MEMORY=512M",
+        "-e", f"MOTD=ServerVault - {server.name}",
+        "--restart", "unless-stopped",
+        "itzg/minecraft-server"
+    ])
+
+    public = get_public_ip()
+
     new_server = GameServer(
         name=server.name,
         game=server.game,
         status=ServerStatus.RUNNING,
-        fake_ip=generate_fake_ip(),
-        fake_cpu=round(random.uniform(15, 85), 1),
-        fake_ram=round(random.uniform(20, 75), 1),
-        fake_players=random.randint(0, server.max_players),
+        ip_address=f"{public}:{port}",
+        cpu_usage=0.0,
+        ram_usage=0.0,
+        player_count=0,
         max_players=server.max_players,
         monthly_cost=GAME_PRICING[server.game],
-        owner_id=current_user.id,
+        owner_id=current_user.id
     )
     db.add(new_server)
     db.commit()
