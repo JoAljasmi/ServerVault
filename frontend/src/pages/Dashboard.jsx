@@ -14,6 +14,14 @@ function Dashboard() {
   // Fetch servers and stats on load
   useEffect(() => {
     fetchData();  
+
+    // Refresh stats every 10 seconds
+
+    const interval = setInterval(() => {
+      fetchData();
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const fetchData = async () => {
