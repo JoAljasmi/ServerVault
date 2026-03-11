@@ -5,6 +5,7 @@ from database import engine, get_db, Base
 from models import User, GameServer, ServerStatus
 from schemas import UserCreate, UserLogin, UserOut, ServerCreate, ServerOut, ServerAction, Token
 from auth import hash_password, verify_password, create_token, get_current_user, delete_token, oauth2_scheme
+from mcstatus import JavaServer
 import subprocess
 
 # Create all tables in the database
@@ -138,6 +139,15 @@ def get_container_status(container_name: str) -> str:
         return ServerStatus.STOPPED
     return ServerStatus.STOPPED
 
+def get_player_count(ip_address: str) -> int:
+    """Get the current player count"""
+    try:
+        host, port = ip_address.split(":")
+        server = JavaServer.lookup(f"{host}:{port}")
+        status = server.status()
+        return status.players.online
+    except:
+        return 0
 
 # ====== server routes ======
 
@@ -210,6 +220,7 @@ def list_servers(
         stats = get_container_stats(container_name)
         server.cpu_usage = stats["cpu"]
         server.ram_usage = stats["ram"]
+        server.player_count = get_player_count(server.ip_address)
 
     db.commit()
     return servers
@@ -236,6 +247,7 @@ def get_server(
     stats = get_container_stats(container_name)
     server.cpu_usage = stats["cpu"]
     server.ram_usage = stats["ram"]
+    server.player_count = get_player_count(server.ip_address)
     db.commit()
     return server
 
