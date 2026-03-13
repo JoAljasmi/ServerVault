@@ -6,6 +6,8 @@ from models import User, GameServer, ServerStatus
 from schemas import UserCreate, UserLogin, UserOut, ServerCreate, ServerOut, ServerAction, Token
 from auth import hash_password, verify_password, create_token, get_current_user, delete_token, oauth2_scheme
 from mcstatus import JavaServer
+import google.generativeai as genai
+import os
 import subprocess
 
 # Create all tables in the database
@@ -311,6 +313,56 @@ def delete_server(
     db.delete(server)
     db.commit()
     return {"message": "Server deleted successfully"}    
+
+
+# ====== Ai Chat =======
+
+genai.configure(api_key=os.getenv("GENAI_API_KEY"))
+
+@app.post("/ai/chat")
+def ai_chat(
+    request: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Ai assistant that helps with server questions"""
+    user_message = request.get("message", "")
+
+    if not user_message:
+        raise HTTPException(status_code=400, detail="Message is required")
+    
+    #get users server question
+    servers = db.query(GameServer).filter(GameServer.owner_id == current_user.id).all()
+    server_info = ""
+    for s in servers:
+        server_info += f"- {s.name}: {s.game}, status={s.status}, players={s.player_count}/{s.max_players}, cpu={s.cpu_usage}%, ram={s.ram_usage}%\n"
+    
+    system_prompt = f"""You are ServerVault AI, a helpfulassistant for a Minecraft server hosting platform.
+    You help users with:
+- Minecraft server setup and configuration
+- Performance optimization tips
+- Troubleshooting server issues
+- Game settings and plugins
+- General Minecraft questions
+
+The user currently has these servers:
+{server_info if server_info else 'No servers yet.'}
+
+Keep responses concise and helpful. If asked about things unrelated to Minecraft or server hosting, politely redirect.
+"""
+    
+    try:
+        model = genai.GenerativeModel("gemini-2.0-flash")
+        response = model.generate_content(
+            [
+                {"role": "user", "parts": [{"text": system_prompt + "\n\nUser: " + user_message}]}
+
+            ]
+        )
+        return {"response": response.text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI error: {str(e)}")
+    
 
 # ======= Dashboard Stats =======
 
