@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import API from '../api';
 import Navbar from '../components/Navbar';
 import ServerCard from "../components/ServerCard";
+import AiChat from "../components/AiChat";
 
 function Dashboard() {
   const [servers, setServers] = useState([]);
@@ -190,6 +191,8 @@ function Dashboard() {
           </div>
         )}
     </div>
+        {/* AI Chat */}
+        <AiChat />
     </div>
   );
 }
