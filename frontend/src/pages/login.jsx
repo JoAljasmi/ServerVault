@@ -99,21 +99,21 @@ return (
 
         {/* Features placed on the bottom*/}
         <div className="mt-8 grid grid-cols-3 gap-4 text-center">
+            <div className="text-gray-500">
+                <div className="text-2xl mb-1">⛏️</div>
+                <div className="text-xs">Minecraft<br/>Servers</div>
+            </div>
+            <div className="text-gray-500">
+                <div className="text-2xl mb-1">📊</div>
+                <div className="text-xs">Real-time<br/>Monitoring</div>
+            </div>
         <div className="text-gray-500">
-            <div className="text-2xl mb-1">🎮</div>
-            <div className="text-xs">CS2, Rust &<br/>Minecraft</div>
-        </div>
-        <div className="text-gray-500">
-            <div className="text-2xl mb-1">📊</div>
-            <div className="text-xs">Real-time<br/>Monitoring</div>
-        </div>
-        <div className="text-gray-500">
-            <div className="text-2xl mb-1">⚡</div>
-            <div className="text-xs">Instant<br/>Deployment</div>
-        </div>
+            <div className="text-2xl mb-1">🤖</div>
+            <div className="text-xs">AI<br/>Assistant</div>
         </div>
     </div>
-    </div>
+</div>
+</div>
 );
 }
 
