@@ -6,9 +6,10 @@ from models import User, GameServer, ServerStatus
 from schemas import UserCreate, UserLogin, UserOut, ServerCreate, ServerOut, ServerAction, Token
 from auth import hash_password, verify_password, create_token, get_current_user, delete_token, oauth2_scheme
 from mcstatus import JavaServer
-import google.generativeai as genai
 import os
 import subprocess
+from openai import OpenAI
+
 
 # Create all tables in the database
 Base.metadata.create_all(bind=engine)
@@ -316,9 +317,6 @@ def delete_server(
 
 
 # ====== Ai Chat =======
-
-genai.configure(api_key=os.getenv("GENAI_API_KEY"))
-
 @app.post("/ai/chat")
 def ai_chat(
     request: dict,
@@ -352,16 +350,22 @@ Keep responses concise and helpful. If asked about things unrelated to Minecraft
 """
     
     try:
-        model = genai.GenerativeModel("gemini-2.0-flash")
-        response = model.generate_content(
-            [
-                {"role": "user", "parts": [{"text": system_prompt + "\n\nUser: " + user_message}]}
-
-            ]
+        client = OpenAI(
+            api_key=os.getenv("GROQ_API_KEY"),
+            base_url="https://api.groq.com/openai/v1"
+    )
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+        ],
+        max_tokens=300,
         )
-        return {"response": response.text}
+        return {"response": response.choices[0].message.content}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI error: {str(e)}")
+        print(f"AI error: {e}")
+        raise HTTPException(status_code=500, detail=f"AI service error")
     
 
 # ======= Dashboard Stats =======
