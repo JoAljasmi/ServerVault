@@ -3,12 +3,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from database import engine, get_db, Base
 from models import User, GameServer, ServerStatus
-from schemas import UserCreate, UserLogin, UserOut, ServerCreate, ServerOut, ServerAction, Token
+from schemas import UserCreate, UserLogin, UserOut, ServerCreate, ServerOut, ServerAction, Token, VerifyEmail
 from auth import hash_password, verify_password, create_token, get_current_user, delete_token, oauth2_scheme
 from mcstatus import JavaServer
 import os
 import subprocess
 from openai import OpenAI
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import random
+import string
 
 
 # Create all tables in the database
@@ -36,15 +41,28 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Username already taken")
     if db.query(User).filter(User.email == user.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
+    if len(user.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters long")
+    
+    code = generate_verification_code()
 
     new_user = User(
         username=user.username,
         email=user.email,
-        hashed_password=hash_password(user.password)
+        hashed_password=hash_password(user.password),
+        is_verified=False,
+        verification_code=code,
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+
+#sending a verification email with a code
+    try:
+        send_verification_email(user.email, code)
+    except Exception as e:
+        print(f"Email error: {e}")
+
     return new_user
 
 @app.post("/auth/login", response_model=Token)
@@ -54,7 +72,8 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.username == user.username).first()
     if not db_user or not verify_password(user.password, db_user.hashed_password):
         raise HTTPException(status_code=401, detail = "Invalid username or password")
-    
+    if not db_user.is_verified:
+        raise HTTPException(status_code=403, detail="Email not verified. Please verify your email before logging in.")
     token = create_token(db_user.id, db)
     return {"access_token": token, "token_type": "bearer"}
 
@@ -72,6 +91,19 @@ def logout(
 def get_me(current_user: User = Depends(get_current_user)):
     """Get the current logged in user's info"""
     return current_user
+
+@app.post("/auth/verify")
+def verify_email(data: VerifyEmail, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == data.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.verification_code != data.code:
+        raise HTTPException(status_code=400, detail="Invalid verification code")
+
+    user.is_verified = True
+    user.verification_code = None
+    db.commit()
+    return {"message": "Email verified successfully"}
 
 # ====== Docker Helpers ======
 
@@ -151,6 +183,41 @@ def get_player_count(ip_address: str) -> int:
         return status.players.online
     except:
         return 0
+
+def generate_verification_code() -> str:
+    """generate a 6 digit verify code"""
+    return ''.join(random.choices(string.digits, k=6))
+
+def send_verification_email(to_email:str, code: str):
+    """send a verification code through email"""
+    from_email = os.getenv("EMAIL_ADDRESS")
+    password = os.getenv("EMAIL_PASSWORD")
+
+    msg = MIMEMultipart()
+    msg['From'] = from_email
+    msg['To'] = to_email
+    msg['Subject'] = "ServerVault Email Verification"
+
+    body = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; background-color: #1f2937; color: #ffffff; padding: 20px;">
+        <div style="max-width: 500px; margin: 0 auto; background-color: #374151; padding: 30px; border-radius: 12px;">
+            <h2 style="color: #3b82f6;">ServerVault</h2>
+            <p>Your verification code is:</p>
+            <h1 style="color: #3b82f6; letter-spacing: 8px; text-align: center;">{code}</h1>
+            <p>Enter this code to verify your email.</p>
+            <p style="color: #9ca3af; font-size: 12px;">This code expires in 10 mintues.</p>
+        </div>
+    </body>
+    </html>
+    """     
+
+    msg.attach(MIMEText(body, 'html'))
+
+    with smtplib.SMTP('smtp.gmail.com', 587) as server:
+        server.starttls()
+        server.login(from_email, password)
+        server.send_message(msg)
 
 # ====== server routes ======
 

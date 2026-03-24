@@ -20,10 +20,15 @@ class UserOut(BaseModel):
     id: int
     username: str
     email: str
+    is_verified: bool
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+class VerifyEmail(BaseModel):
+    email: str
+    code: str
 
 # ============== server Scehmas ==============
 

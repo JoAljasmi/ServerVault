@@ -17,7 +17,7 @@ function Register() {
 
         try {
             await API.post("/auth/register", {username, email, password});
-            navigate("/login");
+            navigate("/verify", {state: { email }});
         } catch (err) {
             const detail = err.response?.data?.detail;
             if (typeof detail === "string") {
