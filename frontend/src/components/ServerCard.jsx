@@ -1,4 +1,8 @@
+import { useNavigate } from "react-router-dom";
+
 function ServerCard({ server, onAction, onDelete }) {
+    const navigate = useNavigate();
+    
     const gameIcons = {
         minecraft: "/minecraft.jpg",
     };
@@ -13,7 +17,9 @@ function ServerCard({ server, onAction, onDelete }) {
     return (
         <div className='bg-gray-800 border border-gray-700 rounded-xl p-5'>
             {/*Header*/}
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 cursor-pointer"
+                onClick={() => navigate(`/server/${server.id}`)}
+            >
                 <div className="flex items-center gap-2">
                     <img src={gameIcons[server.game]} alt="Minecraft" className="w-10 h-10 rounded-lg object-cover" />
                 <div>

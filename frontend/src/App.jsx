@@ -4,6 +4,7 @@ import Register from "./pages/register";
 import Dashboard from "./pages/Dashboard";
 import Verify from "./pages/Verify";
 import FrontPage from "./pages/FrontPage";
+import ServerDetail from "./pages/ServerDetail";
 
 function App() {
   return (
@@ -17,6 +18,12 @@ function App() {
           path="/dashboard"
           element={
             localStorage.getItem("token") ? <Dashboard /> : <Navigate to="/login" />
+          }
+        />
+        <Route
+          path="/server/:id"
+          element={
+            localStorage.getItem("token") ? <ServerDetail /> : <Navigate to="/login" />
           }
         />
       </Routes>
