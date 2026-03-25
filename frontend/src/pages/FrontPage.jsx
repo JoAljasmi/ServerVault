@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 function FrontPage() {
     return(
-        <div className="min-h-screen bg-gray-900">
+        <div className="min-h-screen bg-gray-900" style={{background: "linear-gradient(rgba(17, 24, 39, 0.85), rgba(17, 24, 39, 0.95)), url('/gaming-bg.jpg') center/cover fixed"}}>
             {/* Navbar */}
             <nav className="border-b border-gray-800 sticky top-0 z-50 bg-gray-900/95 backdrop-blur-sm">
                 <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -124,7 +124,7 @@ function FrontPage() {
                         <img src="/Servervault-logo.png" alt="ServerVault" className="w-6 h-6 rounded" />
                         <span className="text-gray-500 text-sm">ServerVault © 2026</span>
                     </div>
-                    <p className="text-gray-600 text-sm">A school project by Josef</p>
+                    <p className="text-gray-600 text-sm">A project by Josef</p>
                 </div>
             </footer>
         </div>
