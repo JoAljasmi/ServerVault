@@ -9,7 +9,7 @@ function Navbar() {
             await API.post("/auth/logout");
         } catch (err) {}
         localStorage.removeItem("token");
-        navigate("/login");
+        navigate("/FrontPage");
     };
 
     return (
