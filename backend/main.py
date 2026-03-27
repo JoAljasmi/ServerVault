@@ -488,7 +488,7 @@ def admin_get_servers(
     for s in servers:
         owner = db.query(User).filter(User.id == s.owner_id).first()
         port = s.ip_address.split(":")[-1]
-        container_name = f"{s.game}-{s.owner_id}-{port}"
+        container_name = f"mc-{s.owner_id}-{port}"
         s.status = get_container_status(container_name)
         stats = get_container_stats(container_name)
         result.append({
