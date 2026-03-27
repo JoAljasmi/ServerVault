@@ -5,7 +5,7 @@ import Dashboard from "./pages/Dashboard";
 import Verify from "./pages/Verify";
 import FrontPage from "./pages/FrontPage";
 import ServerDetail from "./pages/ServerDetail";
-import Admin from "./pages/Admin";
+import Admin from "./pages/admin";
 
 function App() {
   return (
