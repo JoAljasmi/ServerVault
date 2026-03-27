@@ -219,6 +219,13 @@ def send_verification_email(to_email:str, code: str):
         server.login(from_email, password)
         server.send_message(msg)
 
+def get_admin_user(current_user: User = Depends(get_current_user)):
+    """Ensure the current user is an admin."""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
+
+
 # ====== server routes ======
 
 GAME_PRICING = {
@@ -446,6 +453,129 @@ def ai_chat(
         print(f"AI error: {e}")
         raise HTTPException(status_code=500, detail=f"AI service error")
     
+
+# ============ ADMIN ROUTES ============
+
+@app.get("/admin/users")
+def admin_get_users(
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    """Get all users (admin only)."""
+    users = db.query(User).all()
+    return [
+        {
+            "id": u.id,
+            "username": u.username,
+            "email": u.email,
+            "is_verified": u.is_verified,
+            "is_admin": u.is_admin,
+            "created_at": u.created_at.isoformat(),
+            "server_count": db.query(GameServer).filter(GameServer.owner_id == u.id).count(),
+        }
+        for u in users
+    ]
+
+
+@app.get("/admin/servers")
+def admin_get_servers(
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    """Get all servers from all users (admin only)."""
+    servers = db.query(GameServer).all()
+    result = []
+    for s in servers:
+        owner = db.query(User).filter(User.id == s.owner_id).first()
+        port = s.ip_address.split(":")[-1]
+        container_name = f"{s.game}-{s.owner_id}-{port}"
+        s.status = get_container_status(container_name)
+        stats = get_container_stats(container_name)
+        result.append({
+            "id": s.id,
+            "name": s.name,
+            "game": s.game,
+            "status": s.status,
+            "ip_address": s.ip_address,
+            "cpu_usage": stats["cpu"],
+            "ram_usage": stats["ram"],
+            "owner": owner.username if owner else "Unknown",
+            "created_at": s.created_at.isoformat(),
+        })
+    return result
+
+
+@app.get("/admin/stats")
+def admin_get_stats(
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    """Get platform-wide stats (admin only)."""
+    total_users = db.query(User).count()
+    verified_users = db.query(User).filter(User.is_verified == True).count()
+    total_servers = db.query(GameServer).count()
+    running_servers = db.query(GameServer).filter(GameServer.status == ServerStatus.RUNNING).count()
+
+    return {
+        "total_users": total_users,
+        "verified_users": verified_users,
+        "total_servers": total_servers,
+        "running_servers": running_servers,
+    }
+
+
+@app.delete("/admin/users/{user_id}")
+def admin_delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    """Delete a user and all their servers (admin only)."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.is_admin:
+        raise HTTPException(status_code=400, detail="Cannot delete an admin")
+
+    # Delete all their servers and containers
+    servers = db.query(GameServer).filter(GameServer.owner_id == user_id).all()
+    for s in servers:
+        port = s.ip_address.split(":")[-1]
+        container_name = f"{s.game}-{s.owner_id}-{port}"
+        run_docker(["docker", "stop", container_name])
+        run_docker(["docker", "rm", container_name])
+        db.delete(s)
+
+    # Delete their sessions
+    from models import UserSession
+    db.query(UserSession).filter(UserSession.user_id == user_id).delete()
+
+    db.delete(user)
+    db.commit()
+    return {"message": f"User {user.username} deleted"}
+
+
+@app.delete("/admin/servers/{server_id}")
+def admin_delete_server(
+    server_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    """Delete any server (admin only)."""
+    server = db.query(GameServer).filter(GameServer.id == server_id).first()
+    if not server:
+        raise HTTPException(status_code=404, detail="Server not found")
+
+    port = server.ip_address.split(":")[-1]
+    container_name = f"{server.game}-{server.owner_id}-{port}"
+    run_docker(["docker", "stop", container_name])
+    run_docker(["docker", "rm", container_name])
+
+    db.delete(server)
+    db.commit()
+    return {"message": "Server deleted"}
+
+
 
 # ======= Dashboard Stats =======
 

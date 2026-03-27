@@ -21,6 +21,7 @@ class UserOut(BaseModel):
     username: str
     email: str
     is_verified: bool
+    is_admin: bool
     created_at: datetime
 
     class Config:
