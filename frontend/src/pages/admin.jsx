@@ -211,56 +211,16 @@ function Admin() {
                                 <td className="p-4 text-gray-300 text-sm">{user.server_count}</td>
                                 <td className="p-4 text-gray-400 text-sm">{new Date(user.created_at).toLocaleDateString()}</td>
                                 <td className="p-4 text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                    {server.status === "running" ? (
-                                    <button
-                                        onClick={async () => {
-                                            await API.post(`/admin/servers/${server.id}/action`, { action: "stop" });
-                                            fetchAll();
-                                        }}
-                                        className="text-yellow-400 hover:text-yellow-300 transition"
-                                        title="Stop"
-                                    >
-                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                            <path d="M6 6h12v12H6z" />
-                                        </svg>
-                                    </button>
-                                ) : (
-                                    <button
-                                        onClick={async () => {
-                                            await API.post(`/admin/servers/${server.id}/action`, { action: "start" });
-                                            fetchAll();
-                                        }}
-                                        className="text-green-400 hover:text-green-300 transition"
-                                        title="Start"
-                                    >
-                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                            <path d="M8 5v14l11-7z" />
-                                        </svg>
-                                    </button>
-                                )}
-                                <button
-                                    onClick={async () => {
-                                        await API.post(`/admin/servers/${server.id}/action`, { action: "restart" });
-                                        fetchAll();
-                                    }}
-                                    className="text-blue-400 hover:text-blue-300 transition"
-                                    title="Restart"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                    </svg>
-                                </button>
-                                <button
-                                    onClick={() => handleDeleteServer(server.id)}
-                                    className="text-red-400 hover:text-red-300 transition"
-                                    title="Delete"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                    </button>
-                                    </div>
+                                    {!user.is_admin && (
+                                        <button
+                                            onClick={() => handleDeleteUser(user.id, user.username)}
+                                            className="text-red-400 hover:text-red-300 text-sm transition"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    )}
                                 </td>
                             </tr>
                         ))}
@@ -309,15 +269,57 @@ function Admin() {
                                 <td className="p-4 text-gray-300 text-sm">{server.cpu_usage}%</td>
                                 <td className="p-4 text-gray-300 text-sm">{server.ram_usage}%</td>
                                 <td className="p-4 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                    {server.status === "running" ? (
+                                        <button
+                                            onClick={async () => {
+                                                await API.post(`/admin/servers/${server.id}/action`, { action: "stop" });
+                                                fetchAll();
+                                            }}
+                                            className="text-yellow-400 hover:text-yellow-300 transition"
+                                            title="Stop"
+                                        >
+                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M6 6h12v12H6z" />
+                                            </svg>
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={async () => {
+                                                await API.post(`/admin/servers/${server.id}/action`, { action: "start" });
+                                                fetchAll();
+                                            }}
+                                            className="text-green-400 hover:text-green-300 transition"
+                                            title="Start"
+                                        >
+                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M8 5v14l11-7z" />
+                                            </svg>
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={async () => {
+                                            await API.post(`/admin/servers/${server.id}/action`, { action: "restart" });
+                                            fetchAll();
+                                        }}
+                                        className="text-blue-400 hover:text-blue-300 transition"
+                                        title="Restart"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                    </button>
                                     <button
                                         onClick={() => handleDeleteServer(server.id)}
-                                        className="text-red-400 hover:text-red-300 text-sm transition"
+                                        className="text-red-400 hover:text-red-300 transition"
+                                        title="Delete"
                                     >
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                         </svg>
                                     </button>
-                                </td>
+                                </div>
+                            </td>
                             </tr>
                         ))}
                         {servers.length === 0 && (
