@@ -541,7 +541,7 @@ def admin_delete_user(
     servers = db.query(GameServer).filter(GameServer.owner_id == user_id).all()
     for s in servers:
         port = s.ip_address.split(":")[-1]
-        container_name = f"{s.game}-{s.owner_id}-{port}"
+        container_name = f"mc-{s.owner_id}-{port}"
         run_docker(["docker", "stop", container_name])
         run_docker(["docker", "rm", container_name])
         db.delete(s)
@@ -567,7 +567,7 @@ def admin_delete_server(
         raise HTTPException(status_code=404, detail="Server not found")
 
     port = server.ip_address.split(":")[-1]
-    container_name = f"{server.game}-{server.owner_id}-{port}"
+    container_name = f"mc-{server.owner_id}-{port}"
     run_docker(["docker", "stop", container_name])
     run_docker(["docker", "rm", container_name])
 
