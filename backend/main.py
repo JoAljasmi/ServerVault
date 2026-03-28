@@ -14,6 +14,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import random
 import string
+import a2s
 
 
 # Create all tables in the database
@@ -116,9 +117,9 @@ def get_public_ip() -> str:
     except:
         return "0.0.0.0"
     
-def get_next_port(db: Session) -> int:
+def get_next_port(db: Session, game: str = "minecraft") -> int:
     """Find the next available port starting from 25565"""
-    servers = db.query(GameServer).all()
+    servers = db.query(GameServer).filter(GameServer.game == game).all()
     used_ports = set()
     for s in servers:
         try:
@@ -126,7 +127,10 @@ def get_next_port(db: Session) -> int:
             used_ports.add(port)
         except:
             pass
-    port = 25565
+    if game == "cs2":
+        port = 27015
+    else:
+        port = 25565
     while port in used_ports:
         port += 1
     return port
@@ -183,6 +187,15 @@ def get_player_count(ip_address: str) -> int:
         return status.players.online
     except:
         return 0
+    
+def get_cs2_player_count(ip_address: str) -> int:
+    """Get real player count from a CS2 server."""
+    try:
+        host, port = ip_address.split(":")
+        info = a2s.info((host, int(port)))
+        return info.player_count
+    except:
+        return 0
 
 def generate_verification_code() -> str:
     """generate a 6 digit verify code"""
@@ -226,10 +239,13 @@ def get_admin_user(current_user: User = Depends(get_current_user)):
     return current_user
 
 
+
+    
 # ====== server routes ======
 
 GAME_PRICING = {
     "minecraft": 9.99,
+    "cs2": 12.99,
 }
 
 @app.post("/servers", response_model=ServerOut)
@@ -238,44 +254,55 @@ def create_server(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """ Deploy a new game server"""
     if server.game not in GAME_PRICING:
-        raise HTTPException(status_code=400, detail="only minecraft is supported for now")
-    
-    #limited to 3 servers per user
+        raise HTTPException(status_code=400, detail="Game must be minecraft or cs2")
+
     user_servers = db.query(GameServer).filter(GameServer.owner_id == current_user.id).all()
     if len(user_servers) >= 3:
-        raise HTTPException(status_code=400, detail="Server limit reached per user (max 3)")
+        raise HTTPException(status_code=400, detail="Maximum 3 servers per user")
 
-    port = get_next_port(db)
+    port = get_next_port(db, server.game)
     container_name = f"mc-{current_user.id}-{port}"
 
-    # start the minecraft server in docker
-    run_docker([
-        "docker", "run", "-d",
-        "--name", container_name,
-        "-p", f"{port}:25565",
-        "-e", "EULA=TRUE",
-        "-e", f"MAX_PLAYERS={server.max_players}",
-        "-e", "MEMORY=512M",
-        "-e", f"MOTD=ServerVault - {server.name}",
-        "--restart", "unless-stopped",
-        "itzg/minecraft-server"
-    ])
+    if server.game == "minecraft":
+        run_docker([
+            "docker", "run", "-d",
+            "--name", container_name,
+            "-p", f"{port}:25565",
+            "-e", "EULA=TRUE",
+            "-e", f"MAX_PLAYERS={server.max_players}",
+            "-e", "MEMORY=512M",
+            "-e", f"MOTD=ServerVault - {server.name}",
+            "--restart", "unless-stopped",
+            "itzg/minecraft-server"
+        ])
+    elif server.game == "cs2":
+        run_docker([
+            "docker", "run", "-d",
+            "--name", container_name,
+            "-p", f"{port}:27015/tcp",
+            "-p", f"{port}:27015/udp",
+            "-e", f"CS2_SERVERNAME=ServerVault - {server.name}",
+            "-e", f"CS2_MAXPLAYERS={server.max_players}",
+            "-e", "CS2_GAMETYPE=0",
+            "-e", "CS2_GAMEMODE=1",
+            "--restart", "unless-stopped",
+            "joedwards32/cs2"
+        ])
 
-    public = get_public_ip()
+    public_ip = get_public_ip()
 
     new_server = GameServer(
         name=server.name,
         game=server.game,
         status=ServerStatus.RUNNING,
-        ip_address=f"{public}:{port}",
+        ip_address=f"{public_ip}:{port}",
         cpu_usage=0.0,
         ram_usage=0.0,
         player_count=0,
         max_players=server.max_players,
         monthly_cost=GAME_PRICING[server.game],
-        owner_id=current_user.id
+        owner_id=current_user.id,
     )
     db.add(new_server)
     db.commit()
@@ -287,7 +314,6 @@ def list_servers(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get all servers owned by the current user."""
     servers = db.query(GameServer).filter(GameServer.owner_id == current_user.id).all()
 
     for server in servers:
@@ -297,7 +323,8 @@ def list_servers(
         stats = get_container_stats(container_name)
         server.cpu_usage = stats["cpu"]
         server.ram_usage = stats["ram"]
-        server.player_count = get_player_count(server.ip_address)
+        if server.game == "minecraft":
+            server.player_count = get_player_count(server.ip_address)
 
     db.commit()
     return servers
@@ -308,8 +335,6 @@ def get_server(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get details of a specific server."""
-
     server = db.query(GameServer).filter(
         GameServer.id == server_id,
         GameServer.owner_id == current_user.id,
@@ -317,15 +342,19 @@ def get_server(
 
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
-    
+
     port = server.ip_address.split(":")[-1]
     container_name = f"mc-{current_user.id}-{port}"
     server.status = get_container_status(container_name)
     stats = get_container_stats(container_name)
     server.cpu_usage = stats["cpu"]
     server.ram_usage = stats["ram"]
-    server.player_count = get_player_count(server.ip_address)
+    if server.game == "minecraft":
+        server.player_count = get_player_count(server.ip_address)
+    elif server.game == "cs2":
+        server.player_count = get_cs2_player_count(server.ip_address)
     db.commit()
+
     return server
 
 @app.post("/servers/{server_id}/action", response_model=ServerOut)
