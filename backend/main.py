@@ -594,3 +594,33 @@ def get_dashboard_stats(
         "total_players": sum([s.player_count for s in total_servers]),
         "monthly_cost": round(sum(s.monthly_cost for s in total_servers), 2)
     }
+
+@app.post("/admin/servers/{server_id}/action")
+def admin_server_action(
+    server_id: int,
+    action: ServerAction,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    """Start, stop, or restart any server (admin only)."""
+    server = db.query(GameServer).filter(GameServer.id == server_id).first()
+    if not server:
+        raise HTTPException(status_code=404, detail="Server not found")
+
+    port = server.ip_address.split(":")[-1]
+    container_name = f"mc-{server.owner_id}-{port}"
+
+    if action.action == "start":
+        run_docker(["docker", "start", container_name])
+        server.status = ServerStatus.RUNNING
+    elif action.action == "stop":
+        run_docker(["docker", "stop", container_name])
+        server.status = ServerStatus.STOPPED
+    elif action.action == "restart":
+        run_docker(["docker", "restart", container_name])
+        server.status = ServerStatus.RUNNING
+    else:
+        raise HTTPException(status_code=400, detail="Action must be start, stop, or restart")
+
+    db.commit()
+    return {"message": f"Server {action.action} successful"}
