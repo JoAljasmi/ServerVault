@@ -7,7 +7,7 @@ from datetime import datetime
 #for user registerations
 class UserCreate(BaseModel):
     username: str
-    email: EmailStr  #for auto validation
+    email: EmailStr  
     password: str
 
 #for user login

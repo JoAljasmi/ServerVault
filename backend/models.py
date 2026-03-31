@@ -6,7 +6,8 @@ import enum
 
 #games that are supported by the server
 class GameType(str, enum.Enum):
-    Minecraft = "Minecraft"
+    MINECRAFT = "minecraft"
+    CS2 = "cs2"
 
 
 class ServerStatus(str, enum.Enum):
@@ -36,8 +37,8 @@ class GameServer(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    game = Column(String, nullable=False)
-    status = Column(String, default=ServerStatus.STOPPED)
+    game = Column(Enum(GameType), nullable=False)
+    status = Column(Enum(ServerStatus), default=ServerStatus.STOPPED)
     ip_address = Column(String)
     cpu_usage = Column(Float, default=0.0)
     ram_usage = Column(Float, default=0.0)
