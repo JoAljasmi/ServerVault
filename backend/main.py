@@ -197,6 +197,9 @@ def get_cs2_player_count(ip_address: str) -> int:
     except:
         return 0
 
+
+# ====== Email/Admin Helpers ======
+
 def generate_verification_code() -> str:
     """generate a 6 digit verify code"""
     return ''.join(random.choices(string.digits, k=6))
@@ -219,7 +222,7 @@ def send_verification_email(to_email:str, code: str):
             <p>Your verification code is:</p>
             <h1 style="color: #3b82f6; letter-spacing: 8px; text-align: center;">{code}</h1>
             <p>Enter this code to verify your email.</p>
-            <p style="color: #9ca3af; font-size: 12px;">This code expires in 10 mintues.</p>
+            <p style="color: #9ca3af; font-size: 12px;">This code expires in 10 minutes.</p>
         </div>
     </body>
     </html>

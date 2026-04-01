@@ -27,3 +27,8 @@ A game server hosting platform where users can deploy, manage, and monitor Minec
 3. Each server runs as an isolated Docker container
 4. The backend monitors real CPU/RAM usage and player count
 5. Users can start, stop, restart, and delete servers
+
+
+
+# link to web
+http://servervaultpro.duckdns.org/
